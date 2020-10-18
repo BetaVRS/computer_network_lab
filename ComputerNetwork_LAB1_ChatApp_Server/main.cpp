@@ -5,7 +5,7 @@
 #pragma comment(lib,"ws2_32.lib")
 using namespace std;
 #define SPORT 8086
-#define LISTENIP "127.0.0.1"
+#define LISTENIP ""
 int main() //Server端
 {
 	//库使用前初始化，协议使用版本
@@ -23,10 +23,10 @@ int main() //Server端
 	saddr.sin_addr.s_addr = INADDR_ANY;		//0代表接收所有IP
 	//inet_pton(AF_INET, LISTENIP, &saddr);	//LISTENIP设置服务器监听IP，0为所有
 
-	char IPv4[33];
+	char IPv4[16]= { 0 };
 	//bind将一个本地地址绑定到指定socket，成功返回0
 	int bindrtv = bind(socketServer, (sockaddr*)&saddr, sizeof(saddr));	//注意bind中第3个参数namelen是指传入第二个指针所指sockaddr_in大小
-	inet_ntop(AF_INET, &saddr, IPv4, 33);
+	inet_ntop(AF_INET, &saddr.sin_addr.s_addr, IPv4, 16);
 	if (bindrtv != 0)
 	{
 		//printf("Failed to bind to IP: %s:%d\n", inet_ntoa(saddr.sin_addr),SPORT);	//inet_ntoa()将一个addr_in结构体输出成IP字符串
@@ -55,21 +55,31 @@ int main() //Server端
 	{
 		printf("Checking connection...\n");
 		SOCKET socketConn = accept(socketServer, (SOCKADDR*)&caddr, &len);	//accept连接请求会创建一个新的socket。用来单独和客户端通信
-		send(socketConn,sendBuf,sendlen,0);
-		recv(socketConn,recvBuf,recvlen,0);
-		
-		if (strcmp("shutdown", recvBuf) == 0)
-		{
-			printf("Server shutdown!\n");
-			break;
-		}
-		if (!recvBuf[0])
-		{
-			printf("Received message: %s\n", recvBuf);
-			system("pause");
-		}
-		strcpy_s(recvBuf, 1024, "");
 
+		inet_ntop(AF_INET, &caddr.sin_addr.s_addr, IPv4, 16);
+		printf("Connect to %s:%d\n", IPv4, ntohs(caddr.sin_port));
+		while (true)
+		{
+			printf("Sending...\n");
+			send(socketConn, sendBuf, strlen(sendBuf) + 1, 0);
+			printf("Message sent.\n");
+
+			printf("Receiving...\n");
+			recv(socketConn, recvBuf, recvlen, 0);
+
+			if (strcmp("shutdown", recvBuf) == 0)
+			{
+				send(socketConn, "Connection shutdown!", sendlen, 0);
+				printf("Connection shutdown!\n");
+				break;
+			}
+			if (recvBuf[0])
+			{
+				printf("Received message: %s\n", recvBuf);
+				//system("pause");
+			}
+			strcpy_s(recvBuf, 1024, "");
+		}
 		closesocket(socketConn);
 		printf("Connection closed!\n");
 	}
