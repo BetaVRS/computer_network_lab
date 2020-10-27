@@ -19,10 +19,10 @@ unsigned short currUID = 1;					//暂存uid
 unsigned int onlineUserNum = 0;				//当前在线人数
 map<unsigned short, queue<char*>*> msgTrans;	//服务器转发消息列表
 
-bool loginAccept(SOCKET sock,unsigned short* uid);
-bool messageAccept(SOCKET sock, unsigned short uid, char* buffer);
-int checkOnlineList(SOCKET sock);
-bool logout(SOCKET sock, u_short uid);
+bool loginAccept(SOCKET sock,unsigned short* uid);	//检查登陆
+bool messageAccept(SOCKET sock, unsigned short uid, char* buffer);	//接收转发消息
+int checkOnlineList(SOCKET sock);	//发送在线列表
+bool logout(SOCKET sock, u_short uid);	//正常登出
 DWORD WINAPI threadProc(LPVOID lpPrama);
 
 int main() //Server端
@@ -54,7 +54,6 @@ int main() //Server端
 		return 0;
 	}
 	printf("Successfully bind to IP: %s:%d\n", IPv4, SPORT);
-
 	//listen使socket进入监听端口的状态，监听远程连接是否到来
 	if (listen(socketServer, 5) != 0)	//5是连接等待队列最大长度，不知到有什么影响
 	{
@@ -64,13 +63,8 @@ int main() //Server端
 	}
 	printf("Listening...\n");
 
-
 	SOCKADDR_IN caddr;						//接收客户端的通信地址
 	int len = sizeof(caddr);				//通信地址的长度，要以地址形式传给accept
-
-	char sendBuf[1024], recvBuf[1024];		//接收与发送buffer
-	int sendlen = 100, recvlen = 100;		//发送与接收buffer长度
-	//strcpy_s(sendBuf,1024,"Testing connection, send from server to client.");
 
 	//Server主循环
 	while (true)
@@ -85,15 +79,11 @@ int main() //Server端
 			HANDLE hThread = CreateThread(NULL, 0, threadProc, (LPVOID)socketConn, 0, NULL); //SOCKET本身是指针 UINT_PTR -> LPVOID (void *)
 			if (hThread)
 			{
-				//onlineUser.emplace(uid, GetThreadId(hThread));	//记录上线用户
 				CloseHandle(hThread);	//关闭线程句柄，表示不再对句柄对应的线程做任何干预。并没有结束线程。
 				printf("New thread created, handle closed.\n");				
 			}
 			else
-			{
-				printf("Failed to create new thread.\n");
-				printf("Error code: %d\n", GetLastError());
-			}
+				printf("Failed to create new thread.\nError code: %d\n", GetLastError());
 		}
 		else
 		{
@@ -244,7 +234,6 @@ DWORD __stdcall threadProc(LPVOID lpPrama)
 	char recvBuf[BUFFSIZE];	//线程与Client通信的buffer
 	BYTE func;	//通信协议中的功能码
 	int retv = 0;
-	int wsaError;
 	char *msg;
 	while (loged)
 	{
@@ -287,7 +276,6 @@ DWORD __stdcall threadProc(LPVOID lpPrama)
 		delete msgQueue.front();
 		msgQueue.pop();
 	}
-
 	closesocket(socketClient);
 	printf("Socket closed!\n");
 	printf("Thread: %u terminated.\n", threadID);

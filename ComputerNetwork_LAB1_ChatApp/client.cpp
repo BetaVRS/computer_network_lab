@@ -15,28 +15,30 @@ HANDLE mutex = CreateMutex(NULL, FALSE, NULL);	//利用互斥量实现线程的�
 HANDLE mutexFileIO = CreateMutex(NULL, FALSE, NULL);
 HANDLE mutexSocket = CreateMutex(NULL, FALSE, NULL);
 //以下为线程需要同步使用的数据
-u_short uid = 0;		//用户uid
+u_short uid = 0;				//用户uid
 char userName[NAMELEN] = { 0 };	//用户名
 SOCKET socketClient = NULL;
-u_short *onlineUser = new u_short[0];
-u_short userNum = 0;
-bool userChecked = true;
-bool inChat = false;
+u_short *onlineUser = new u_short[0];	//在线用户
+u_short userNum = 0;		//在线人数
+bool userChecked = true;	//
+bool inChat = false;		//
 
 bool login(SOCKET sock);	//连接到服务器，初始化UID和user name
-int sendMessage();
-int getMessage(char* buffer);
-int checkOnlineList();
-int getOnlineList(char* buffer);
-int logout();
-int getinput(const char *buffer);	//获取键盘输入，方法待定
-
-void show_menu();
+int sendMessage();			//用户可选择一个UID发送消息
+int getMessage(char* buffer);	//获取服务器转发的消息
+int checkOnlineList();			//用户查看在线列表
+int getOnlineList(char* buffer);	//获取当前在线列表
+int logout();	//通知服务器登出用户
+void show_menu();	//主界面
 
 DWORD WINAPI threadClient(LPVOID lpPrama);
 
 int main()	//Client端
 {
+	char ip[16];
+	printf("Server IP: ");
+	scanf_s("%s", ip, 16);
+
 	//库使用前初始化，协议使用版本
 	WORD wVersionRequest = MAKEWORD(2, 2);
 	WSADATA wsadata;
@@ -61,7 +63,7 @@ int main()	//Client端
 	addrSrv.sin_port = htons(SPORT);				//服务器的监听端口
 	//addrSrv.sin_addr.s_addr = inet_addr(SERVERIP);	//inet_addr()将字符串形式的ip地址转换为网络字节序
 	//inet_pton(AF_INET, SERVERIP, &addrSrv.sin_addr);	//上文报错，改用新版本函数inet_pton()
-	InetPton(AF_INET, SERVERIP, &addrSrv.sin_addr);
+	InetPton(AF_INET, ip, &addrSrv.sin_addr);
 
 	char IPv4[16] = { 0 };
 	int retv = -1;
@@ -233,6 +235,7 @@ int sendMessage()
 
 int getMessage(char* buffer)
 {
+	//先将消息写入log文件，如果用户在聊天室则打印到屏幕
 	char file[20] = { 0 };
 	sprintf_s(file, 20, "chat%u.log", uid);
 
@@ -327,12 +330,6 @@ int logout()
 	return 0;
 }
 
-int getinput(const char * buffer)
-{
-	scanf_s("%s", buffer, BUFFSIZE);
-	return 0;
-}
-
 void show_menu()
 {
 	system("cls");
@@ -353,7 +350,6 @@ DWORD __stdcall threadClient(LPVOID lpPrama)
 
 	while (*logged)
 	{
-
 		WaitForSingleObject(mutex, INFINITE);
 		//printf("Thread checking data from recv()...\n");
 		ret = recv(socketClient, recvBuf, BUFFSIZE, 0);
